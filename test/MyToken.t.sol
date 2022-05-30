@@ -5,25 +5,43 @@ import "forge-std/Test.sol";
 import "../src/MyToken.sol";
 
 contract MyTokenTest is Test {
+    // Target contract
     MyToken myToken;
-    // Vm private vm = Vm(HEVM_ADDRESS);
 
-    address spender = address(100);
-    address addr2 = address(200);
+    // Actors
     address owner;
+    address ZERO_ADDRESS = address(0);
+    address spender = vm.addr(1);
+    address user1 = vm.addr(2);
 
+    // Test params
     string public name = "My Token";
     string public symbol = "MTKN";
 
-    uint256 public initialSupply = 1000 * 1e18;
     uint256 public decimals = 18;
+    uint256 amount = 1000 * 1e18;
+    uint256 public initialSupply = 1000 * 1e18;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    //  =====   Set up  =====
 
     function setUp() public {
         owner = address(this);
         myToken = new MyToken();
     }
 
-    function testConfig() public {
+    //  =====   Initial state   =====
+
+    /**
+     *  @dev Tests the relevant initial state of the contract.
+     *
+     *  - Token name is 'My Token'
+     *  - Token symbol is 'MTKN'
+     *  - Token initail supply is '1000000000000000000000'
+     *  - Token decimals is '18'
+     */
+    function testinitialState() public {
         // assert if the corrent name was used
         assertEq(myToken.name(), name);
 
@@ -37,35 +55,44 @@ contract MyTokenTest is Test {
         assertEq(myToken.decimals(), decimals);
     }
 
-    function testFailApprove() public {
-        emit log_address(owner);
-        emit log_named_uint("balance of owner", myToken.balanceOf(owner));
-        emit log_named_uint("total supply", myToken.totalSupply());
-        myToken.decreaseAllowance(spender, 10);
+    //  =====   Functionality tests   =====
 
-        // stdError.assertionError();
-        // asser
-        // stdError.assertionError(myToken.decreaseAllowance(spender, 10));
+    /// @dev Test `mint`
+
+    // Only Owner should be able to mint
+    function testFailUnauthorizedMinter() public {
+        vm.prank(user1);
+        myToken.mint(user1, amount);
     }
 
-    //     function testApprove() public {
-    //         vm.prank(owner);
-    //         myToken.approve(spender, 10 * 1e18);
+    // Should not be able to mint to the zero address
+    function testFailMintToZeroAddress() public {
+        vm.prank(owner);
+        myToken.mint(ZERO_ADDRESS, amount);
+    }
 
-    //         emit log_named_uint(
-    //             "allowance of spender",
-    //             myToken.allowance(owner, spender) / 1e18
-    //         );
-    //         emit log_named_uint(
-    //             "balance of owner",
-    //             myToken.balanceOf(owner) / 1e18
-    //         );
+    // Should increase total supply
+    function testIncreseTotalSupply() public {
+        uint256 expectedSupply = initialSupply + amount;
+        vm.prank(owner);
+        myToken.mint(owner, amount);
+        assertEq(myToken.totalSupply(), expectedSupply);
+    }
 
-    //         // vm.prank(owner);
-    //         // myToken.decreaseAllowance(spender, 5 * 1e18);
-    //         // emit log_uint(myToken.allowance(owner, spender));
+    // Should increase recipient balance
+    function testIncreaseRecipientBalance() public {
+        vm.prank(owner);
+        myToken.mint(user1, amount);
+        assertEq(myToken.balanceOf(user1), amount);
+    }
 
-    //         vm.prank(spender);
-    //         myToken.transferFrom(spender, addr2, 1);
-    //     }
+    // Should emit Transfer event
+    function testEmitTransferEvent() public {
+        vm.expectEmit(true, true, false, true);
+
+        emit Transfer(ZERO_ADDRESS, user1, amount);
+
+        vm.prank(owner);
+        myToken.mint(user1, amount);
+    }
 }
