@@ -87,12 +87,58 @@ contract MyTokenTest is Test {
     }
 
     // Should emit Transfer event
-    function testEmitTransferEvent() public {
+    function testEmitTransferEventForMint() public {
         vm.expectEmit(true, true, false, true);
 
         emit Transfer(ZERO_ADDRESS, user1, amount);
 
         vm.prank(owner);
         myToken.mint(user1, amount);
+    }
+
+    /// @dev Test `burn`
+
+    // Should not be able to burn tokens in Zero address
+    function testFailBurnFromZeroAddress() public {
+        vm.prank(owner);
+        myToken.burn(ZERO_ADDRESS, amount);
+    }
+
+    // Only owner should be able to burn tokens
+    function testFailUnauthorizedBurner() public {
+        vm.prank(user1);
+        myToken.burn(user1, amount);
+    }
+
+    // should not be able to burn an amount higher than what the account has
+    // I need a better name
+    function testFailBurnBelowBalance() public {
+        vm.prank(owner);
+        myToken.burn(user1, amount);
+    }
+
+    // should decrease total supply
+    function testDecreaseTotalSupply() public {
+        uint256 expectedSupply = initialSupply - amount;
+        vm.prank(owner);
+        myToken.burn(owner, amount);
+        assertEq(myToken.totalSupply(), expectedSupply);
+    }
+
+    // should decrease recipient balance
+    function testDecreaseRecipientBalance() public {
+        vm.prank(owner);
+        myToken.burn(owner, amount);
+        assertEq(myToken.balanceOf(owner), 0);
+    }
+
+    // should emit Transfer event
+    function testEmitTransferEventForBurn() public {
+        vm.expectEmit(true, true, false, true);
+
+        emit Transfer(ZERO_ADDRESS, owner, amount);
+
+        vm.prank(owner);
+        myToken.mint(owner, amount);
     }
 }
